@@ -103,6 +103,7 @@ extension Wine.Container {
         var msync: Bool
         var retinaMode: Bool
         var dxvk: Bool
+        var d3dMetal: Bool
         var dxvkAsync: Bool
         var windowsVersion: Wine.WindowsVersion
         var scaling: Int
@@ -112,6 +113,7 @@ extension Wine.Container {
              msync: Bool = true,
              retinaMode: Bool = true,
              dxvk: Bool = false,
+             d3dMetal: Bool = true,
              dxvkAsync: Bool = false,
              windowsVersion: Wine.WindowsVersion = .win11,
              scaling: Int = 192,
@@ -120,6 +122,7 @@ extension Wine.Container {
             self.msync = msync
             self.retinaMode = retinaMode
             self.dxvk = dxvk
+            self.d3dMetal = d3dMetal
             self.dxvkAsync = dxvkAsync
             self.windowsVersion = windowsVersion
             self.scaling = scaling
@@ -145,6 +148,7 @@ extension Wine.Container.Settings: Codable {
         case msync
         case retinaMode
         case dxvk
+        case d3dMetal
         case dxvkAsync
         case windowsVersion
         case scaling
@@ -159,6 +163,7 @@ extension Wine.Container.Settings: Codable {
         self.msync = try container.decodeIfPresent(Bool.self, forKey: .msync) ?? self.msync
         self.retinaMode = try container.decodeIfPresent(Bool.self, forKey: .retinaMode) ?? self.retinaMode
         self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk) ?? self.dxvk
+        self.d3dMetal = try container.decodeIfPresent(Bool.self, forKey: .d3dMetal) ?? self.d3dMetal
         self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync) ?? self.dxvkAsync
         self.windowsVersion = try container.decodeIfPresent(Wine.WindowsVersion.self, forKey: .windowsVersion) ?? self.windowsVersion
         self.scaling = try container.decodeIfPresent(Int.self, forKey: .scaling) ?? self.scaling

@@ -153,7 +153,7 @@ struct ContainerSettingsView: View {
 
                             do {
                                 if container.settings.dxvk {
-                                    try await Wine.boot(at: container.url, parameters: .update)
+                                    try await Wine.DXVK.uninstall(fromContainerAtURL: container.url)
                                 } else {
                                     try await Wine.DXVK.install(toContainerAtURL: container.url)
                                 }
@@ -169,11 +169,18 @@ struct ContainerSettingsView: View {
                 } message: {
                     Text("""
                         To toggle DXVK, Mythic must quit all games currently running in this container.
-                        Additionally, D3DMetal will be disabled.
+                        This changes the container's DirectX renderer. When DXVK is disabled, Mythic uses the selected D3DMetal or WineD3D backend.
                         
                         Toggling DXVK may impact compatibility positively or negatively.
                         """)
                 }
+
+                Toggle("D3DMetal", isOn: Binding(
+                    get: { container.settings.d3dMetal },
+                    set: { container.settings.d3dMetal = $0 }
+                ))
+                .disabled(container.settings.dxvk || modifyingDXVK)
+                .help("Games must be restarted for renderer changes to take effect.")
 
                 Toggle("Asynchronous DXVK", isOn: Binding(
                     get: { container.settings.dxvkAsync },

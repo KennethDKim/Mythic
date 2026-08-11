@@ -18,6 +18,10 @@ private struct DXVKIncompletePayloadError: LocalizedError {
     var errorDescription: String? = "Unable to enable DXVK: neither the legacy Engine/DXVK/x64 and x32 payload nor the modern Engine/wine/lib/dxvk/x86_64-windows and i386-windows payload is complete."
 }
 
+private struct DXVKIncompleteBuiltInPayloadError: LocalizedError {
+    var errorDescription: String? = "Unable to disable DXVK: the engine's built-in d3d10core.dll and d3d11.dll payload is incomplete for one or both architectures."
+}
+
 extension Wine {
     final class DXVK {
         private static let legacyPayload = DXVKPayload(
@@ -28,6 +32,11 @@ extension Wine {
         private static let modernPayload = DXVKPayload(
             x64Directory: Engine.directory.appending(path: "wine/lib/dxvk/x86_64-windows"),
             x32Directory: Engine.directory.appending(path: "wine/lib/dxvk/i386-windows")
+        )
+
+        private static let builtInPayload = DXVKPayload(
+            x64Directory: Engine.directory.appending(path: "wine/lib/wine/x86_64-windows"),
+            x32Directory: Engine.directory.appending(path: "wine/lib/wine/i386-windows")
         )
 
         private static let requiredDLLs: [String] = ["d3d10core.dll", "d3d11.dll"]
@@ -83,6 +92,42 @@ extension Wine {
             )
         }
 
+        /// Restores the Engine's built-in DirectX DLLs in the specified Wine container.
+        static func uninstall(fromContainerAtURL containerURL: URL) async throws {
+            let payload = try resolveBuiltInPayload()
+            try Wine.killAll(at: containerURL)
+
+            // remove existing d3d dlls
+            // x64
+            try FileManager.default.removeItemIfExists(at: containerURL.appending(path: "drive_c/windows/system32/d3d10core.dll"))
+            try FileManager.default.removeItemIfExists(at: containerURL.appending(path: "drive_c/windows/system32/d3d11.dll"))
+
+            // x32
+            try FileManager.default.removeItemIfExists(at: containerURL.appending(path: "drive_c/windows/syswow64/d3d10core.dll"))
+            try FileManager.default.removeItemIfExists(at: containerURL.appending(path: "drive_c/windows/syswow64/d3d11.dll"))
+
+            // copy built-in d3d dlls from the Engine
+            // x64
+            try FileManager.default.forceCopyItem(
+                at: payload.x64Directory.appending(path: "d3d10core.dll"),
+                to: containerURL.appending(path: "drive_c/windows/system32")
+            )
+            try FileManager.default.forceCopyItem(
+                at: payload.x64Directory.appending(path: "d3d11.dll"),
+                to: containerURL.appending(path: "drive_c/windows/system32")
+            )
+
+            // x32
+            try FileManager.default.forceCopyItem(
+                at: payload.x32Directory.appending(path: "d3d10core.dll"),
+                to: containerURL.appending(path: "drive_c/windows/syswow64")
+            )
+            try FileManager.default.forceCopyItem(
+                at: payload.x32Directory.appending(path: "d3d11.dll"),
+                to: containerURL.appending(path: "drive_c/windows/syswow64")
+            )
+        }
+
         private static func resolvePayload() throws -> DXVKPayload {
             if isComplete(legacyPayload) {
                 return legacyPayload
@@ -95,6 +140,14 @@ extension Wine {
             throw DXVKIncompletePayloadError()
         }
 
+        private static func resolveBuiltInPayload() throws -> DXVKPayload {
+            guard isComplete(builtInPayload) else {
+                throw DXVKIncompleteBuiltInPayloadError()
+            }
+
+            return builtInPayload
+        }
+
         private static func isComplete(_ payload: DXVKPayload) -> Bool {
             [payload.x64Directory, payload.x32Directory].allSatisfy { directory in
                 requiredDLLs.allSatisfy { dll in
@@ -102,7 +155,5 @@ extension Wine {
                 }
             }
         }
-
-        // to remove DXVK, you must run wineboot in update mode
     }
 }

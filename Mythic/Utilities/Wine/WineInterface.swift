@@ -232,7 +232,7 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
             }
             environmentVariables["WINEDLLOVERRIDES"] = "d3d10core,d3d11=n,b"
             environmentVariables["DXVK_ASYNC"] = container.settings.dxvkAsync.numericalValue.description
-        } else {
+        } else if container.settings.d3dMetal {
             let externalDirectory = Engine.directory.appending(path: "wine/lib64/apple_gptk/external")
             let d3dSharedLibrary = externalDirectory.appending(path: "libd3dshared.dylib")
             let d3dMetalFramework = externalDirectory.appending(path: "D3DMetal.framework")
@@ -248,7 +248,7 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         if container.settings.metalHUD {
             if container.settings.dxvk {
                 environmentVariables["DXVK_HUD"] = "full"
-            } else {
+            } else if container.settings.d3dMetal {
                 environmentVariables["MTL_HUD_ENABLED"] = "1"
             }
         }
@@ -265,19 +265,18 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
     }
 
     static func killAll(at urls: URL...) throws {
-        let process: Process = .init()
-        process.executableURL = Engine.directory.appending(path: "wine/bin/wineserver")
-        process.arguments = ["-k"]
-
         let urls: [URL] = urls.isEmpty ? .init(containerURLs) : urls
         
         for url in urls {
-            Task {
-                process.environment = ["WINEPREFIX": url.path]
-                process.qualityOfService = .utility
-                
-                try process.run()
-            }
+            let process: Process = .init()
+            process.executableURL = Engine.directory.appending(path: "wine/bin/wineserver")
+            process.arguments = ["-k"]
+            process.environment = ["WINEPREFIX": url.path]
+            process.qualityOfService = .utility
+
+            try process.run()
+            process.waitUntilExit()
+            try process.checkTerminationStatus()
         }
     }
 
