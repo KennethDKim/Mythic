@@ -17,7 +17,6 @@
 		1217C8BA2EADC544003EC8C9 /* RichAlertView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1217C8B22EADC544003EC8C9 /* RichAlertView.swift */; };
 		1217C8C22EADC680003EC8C9 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1217C8C12EADC680003EC8C9 /* MarkdownUI */; };
 		1D4BF3BF2EEC595D00AD581F /* FileHandle+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4BF3BE2EEC595900AD581F /* FileHandle+Extensions.swift */; };
-		1D5D395D2F234C4800EBE167 /* Celestial in Frameworks */ = {isa = PBXBuildFile; productRef = 1D5D395C2F234C4800EBE167 /* Celestial */; };
 		1DAE54B92F5EB9DC009B2781 /* D3DMetal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAE54B82F5EB9D7009B2781 /* D3DMetal.swift */; };
 		1DF081012F05ACE000D7BB35 /* D3DMetalInstallationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DF081002F05ACD400D7BB35 /* D3DMetalInstallationView.swift */; };
 		5A62AE982C27DB1200BA31D2 /* GameListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A62AE972C27DB1200BA31D2 /* GameListViewModel.swift */; };
@@ -282,7 +281,6 @@
 				6A2961052CE1DD6200917E90 /* FirebaseCore in Frameworks */,
 				1217C8C22EADC680003EC8C9 /* MarkdownUI in Frameworks */,
 				6AFC02812ABE02970004AB77 /* Sparkle in Frameworks */,
-				1D5D395D2F234C4800EBE167 /* Celestial in Frameworks */,
 				6AFC027E2ABDB5D40004AB77 /* SwiftyJSON in Frameworks */,
 				6AA1744F2CD5CC290035B081 /* WhatsNewKit in Frameworks */,
 				6A8592CF2ED8047C00B339D8 /* DockProgress in Frameworks */,
@@ -686,7 +684,6 @@
 				6A2961062CE1DD6200917E90 /* FirebaseCrashlytics */,
 				1217C8C12EADC680003EC8C9 /* MarkdownUI */,
 				6A8592CE2ED8047C00B339D8 /* DockProgress */,
-				1D5D395C2F234C4800EBE167 /* Celestial */,
 			);
 			productName = Mythic;
 			productReference = 6AB474952AACBBE900AB9C63 /* Mythic.app */;
@@ -728,8 +725,6 @@
 				6A2961012CE1DD6200917E90 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				1217C8C02EADC680003EC8C9 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				6A8592CD2ED8047C00B339D8 /* XCRemoteSwiftPackageReference "DockProgress" */,
-				1DF081022F05B04C00D7BB35 /* XCLocalSwiftPackageReference "../Aether" */,
-				1D5D395B2F234C4800EBE167 /* XCLocalSwiftPackageReference "../Celestial" */,
 			);
 			productRefGroup = 6AB474962AACBBE900AB9C63 /* Products */;
 			projectDirPath = "";
@@ -1168,17 +1163,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		1D5D395B2F234C4800EBE167 /* XCLocalSwiftPackageReference "../Celestial" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Celestial;
-		};
-		1DF081022F05B04C00D7BB35 /* XCLocalSwiftPackageReference "../Aether" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Aether;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
 		1217C8C02EADC680003EC8C9 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -1275,10 +1259,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1217C8C02EADC680003EC8C9 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
-		};
-		1D5D395C2F234C4800EBE167 /* Celestial */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Celestial;
 		};
 		6A12FF8D2B73AC4E00AA948C /* Glur */ = {
 			isa = XCSwiftPackageProductDependency;
