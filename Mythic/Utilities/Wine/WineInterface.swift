@@ -228,6 +228,17 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         if container.settings.dxvk {
             environmentVariables["WINEDLLOVERRIDES"] = "d3d10core,d3d11=n,b"
             environmentVariables["DXVK_ASYNC"] = container.settings.dxvkAsync.numericalValue.description
+        } else {
+            let externalDirectory = Engine.directory.appending(path: "wine/lib64/apple_gptk/external")
+            let d3dSharedLibrary = externalDirectory.appending(path: "libd3dshared.dylib")
+            let d3dMetalFramework = externalDirectory.appending(path: "D3DMetal.framework")
+            let frameworkIsDirectory = (try? d3dMetalFramework.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+
+            if FileManager.default.fileExists(atPath: d3dSharedLibrary.path), frameworkIsDirectory {
+                environmentVariables["CX_GRAPHICS_BACKEND"] = "d3dmetal"
+                environmentVariables["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = d3dSharedLibrary.path
+                environmentVariables["DYLD_FRAMEWORK_PATH"] = externalDirectory.path
+            }
         }
 
         if container.settings.metalHUD {
