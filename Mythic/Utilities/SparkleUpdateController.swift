@@ -23,8 +23,7 @@ final class SparkleUpdateController: NSObject, SPUUserDriver, ObservableObject {
     @Published private(set) var userInitiatedCheck: Bool = false
 
     private var updateSettingsCancellables: Set<AnyCancellable> = []
-    private var backgroundTask: AnyCancellable?
-    private let backgroundQueue: DispatchQueue = .init(label: "BackgroudEventService", qos: .background)
+    private var backgroundTask: Timer?
 
     override init() {
         super.init()
@@ -47,19 +46,20 @@ final class SparkleUpdateController: NSObject, SPUUserDriver, ObservableObject {
     }
 
     private func manageBackgroundTask(_ enabled: Bool) {
+        backgroundTask?.invalidate()
+        backgroundTask = nil
+
         if enabled {
-            backgroundTask = AnyCancellable(
-                backgroundQueue.schedule(
-                    after: .init(.now()),
-                    interval: .seconds(60 * 60 * 6)
-                ) {
-                    Task { @MainActor in
-                        SparkleUpdateController.shared.checkForUpdates(userInitiated: false)
-                    }
+            let timer = Timer(
+                timeInterval: 60 * 60 * 6,
+                repeats: true
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.checkForUpdates(userInitiated: false)
                 }
-            )
-        } else {
-            backgroundTask?.cancel()
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            backgroundTask = timer
         }
     }
 
@@ -109,13 +109,13 @@ final class SparkleUpdateController: NSObject, SPUUserDriver, ObservableObject {
         if Thread.isMainThread {
             var action: AutoUpdateAction = .off
             MainActor.assumeIsolated {
-                action = (try? UserDefaults.standard.decodeAndGet(AutoUpdateAction.self, forKey: "sparkleUpdateAction")) ?? .install
+                action = (try? UserDefaults.standard.decodeAndGet(AutoUpdateAction.self, forKey: "sparkleUpdateAction")) ?? .off
             }
             return action
         }
         var action: AutoUpdateAction = .off
         DispatchQueue.main.sync {
-            action = (try? UserDefaults.standard.decodeAndGet(AutoUpdateAction.self, forKey: "sparkleUpdateAction")) ?? .install
+            action = (try? UserDefaults.standard.decodeAndGet(AutoUpdateAction.self, forKey: "sparkleUpdateAction")) ?? .off
         }
         return action
     }
