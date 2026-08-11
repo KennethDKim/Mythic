@@ -226,6 +226,10 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         environmentVariables["ROSETTA_ADVERTISE_AVX"] = container.settings.avx2.numericalValue.description
 
         if container.settings.dxvk {
+            if DXVK.hasModernEmbeddedPayload {
+                environmentVariables["CYDER_GRAPHICS_BACKEND"] = "dxvk"
+                environmentVariables["CX_GRAPHICS_BACKEND"] = "dxvk"
+            }
             environmentVariables["WINEDLLOVERRIDES"] = "d3d10core,d3d11=n,b"
             environmentVariables["DXVK_ASYNC"] = container.settings.dxvkAsync.numericalValue.description
         } else {
