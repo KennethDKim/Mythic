@@ -108,6 +108,7 @@ extension Wine.Container {
         var windowsVersion: Wine.WindowsVersion
         var scaling: Int
         var avx2: Bool
+        var cleanLaunch: Bool
 
         init(metalHUD: Bool = false,
              msync: Bool = true,
@@ -117,7 +118,8 @@ extension Wine.Container {
              dxvkAsync: Bool = false,
              windowsVersion: Wine.WindowsVersion = .win11,
              scaling: Int = 192,
-             avx2: Bool = true) {
+             avx2: Bool = true,
+             cleanLaunch: Bool = false) {
             self.metalHUD = metalHUD
             self.msync = msync
             self.retinaMode = retinaMode
@@ -126,6 +128,7 @@ extension Wine.Container {
             self.dxvkAsync = dxvkAsync
             self.windowsVersion = windowsVersion
             self.scaling = scaling
+            self.cleanLaunch = cleanLaunch
             self.avx2 = {
                 if #available(macOS 15.0, *) {
                     return avx2
@@ -153,6 +156,7 @@ extension Wine.Container.Settings: Codable {
         case windowsVersion
         case scaling
         case avx2
+        case cleanLaunch
     }
 
     init(from decoder: Decoder) throws {
@@ -168,6 +172,7 @@ extension Wine.Container.Settings: Codable {
         self.windowsVersion = try container.decodeIfPresent(Wine.WindowsVersion.self, forKey: .windowsVersion) ?? self.windowsVersion
         self.scaling = try container.decodeIfPresent(Int.self, forKey: .scaling) ?? self.scaling
         self.avx2 = try container.decodeIfPresent(Bool.self, forKey: .avx2) ?? self.avx2
+        self.cleanLaunch = try container.decodeIfPresent(Bool.self, forKey: .cleanLaunch) ?? self.cleanLaunch
     }
 }
 
@@ -185,5 +190,13 @@ extension Wine.Container {
 
     struct AlreadyExistsError: LocalizedError {
         var errorDescription: String? = String(localized: "Attempted to access a container that already exists.")
+    }
+
+    struct D3DMetalInstallationIncompleteError: LocalizedError {
+        let missingComponents: [String]
+
+        var errorDescription: String? {
+            String(localized: "D3DMetal is selected, but the Mythic Engine installation is incomplete. Missing or invalid: \(missingComponents.joined(separator: ", ")). Please reinstall D3DMetal before launching.")
+        }
     }
 }

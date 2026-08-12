@@ -556,8 +556,6 @@ final class Legendary {
         }
 
         let operation: GameOperation = .init(game: game, type: .launch) { _ in
-            guard let containerURL = game.containerURL else { throw Wine.Container.DoesNotExistError() }
-
             var arguments: [String] = ["launch", game.id]
             var environment: [String: String] = .init()
 
@@ -568,7 +566,9 @@ final class Legendary {
             case .macOS:
                 do {} // no environment variables need to be assembled.
             case .windows:
-                environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: containerURL)
+                guard let containerURL = game.containerURL else { throw Wine.Container.DoesNotExistError() }
+                let container = try await Wine.prepareForLaunch(containerURL: containerURL)
+                environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: containerURL, container: container)
                 // legendary requires this, since it calls wine directly.
                 environment["WINEPREFIX"] = containerURL.path(percentEncoded: false)
 

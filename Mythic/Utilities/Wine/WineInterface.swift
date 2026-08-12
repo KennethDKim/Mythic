@@ -215,6 +215,54 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         }
     }
 
+    /// Reconciles persisted container settings with Wine immediately before a Windows launch.
+    static func prepareForLaunch(containerURL: URL) async throws -> Container {
+        guard containerExists(at: containerURL) else { throw Container.DoesNotExistError() }
+
+        let container = try getContainerObject(at: containerURL)
+        let cleanLaunch = container.settings.cleanLaunch
+
+        // Clean launch is the self-healing mode. Registry maintenance commands can
+        // start a bare wineserver, so leave active prefixes untouched when disabled.
+        if cleanLaunch {
+            try killAll(at: containerURL)
+
+            let currentRetinaMode: Bool?
+            do {
+                currentRetinaMode = try await getRetinaMode(containerURL: containerURL)
+            } catch {
+                currentRetinaMode = nil
+            }
+            if currentRetinaMode.map({ $0 != container.settings.retinaMode }) ?? true {
+                try await toggleRetinaMode(containerURL: containerURL, toggle: container.settings.retinaMode)
+            }
+
+            // toggleRetinaMode also changes LogPixels to 192 or 96, so query again before
+            // applying the persisted scaling value.
+            let currentScaling: Int?
+            do {
+                currentScaling = try await getDisplayScaling(containerURL: containerURL)
+            } catch {
+                currentScaling = nil
+            }
+            if currentScaling.map({ $0 != container.settings.scaling }) ?? true {
+                try await setDisplayScaling(containerURL: containerURL, dpi: container.settings.scaling)
+            }
+        }
+
+        if !container.settings.dxvk, container.settings.d3dMetal {
+            _ = try d3dMetalResources()
+        }
+
+        if cleanLaunch {
+            // Stop any maintenance wineserver so the game starts a fresh server with
+            // the final launch environment instead of inheriting the bare one.
+            try killAll(at: containerURL)
+        }
+
+        return container
+    }
+
     /// - Returns: Relevant environment variables as configured in a container for game launch.
     static func assembleEnvironmentVariables(forContainerAtURL containerURL: URL, container: Container? = nil) throws -> [String: String] {
         guard containerExists(at: containerURL) else { throw Wine.Container.DoesNotExistError() }
@@ -223,6 +271,7 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         var environmentVariables: [String: String] = [:]
 
         environmentVariables["WINEMSYNC"] = container.settings.msync.numericalValue.description
+        environmentVariables["WINEESYNC"] = "0"
         environmentVariables["ROSETTA_ADVERTISE_AVX"] = container.settings.avx2.numericalValue.description
 
         if container.settings.dxvk {
@@ -233,16 +282,11 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
             environmentVariables["WINEDLLOVERRIDES"] = "d3d10core,d3d11=n,b"
             environmentVariables["DXVK_ASYNC"] = container.settings.dxvkAsync.numericalValue.description
         } else if container.settings.d3dMetal {
-            let externalDirectory = Engine.directory.appending(path: "wine/lib64/apple_gptk/external")
-            let d3dSharedLibrary = externalDirectory.appending(path: "libd3dshared.dylib")
-            let d3dMetalFramework = externalDirectory.appending(path: "D3DMetal.framework")
-            let frameworkIsDirectory = (try? d3dMetalFramework.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-
-            if FileManager.default.fileExists(atPath: d3dSharedLibrary.path), frameworkIsDirectory {
-                environmentVariables["CX_GRAPHICS_BACKEND"] = "d3dmetal"
-                environmentVariables["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = d3dSharedLibrary.path
-                environmentVariables["DYLD_FRAMEWORK_PATH"] = externalDirectory.path
-            }
+            let resources = try d3dMetalResources()
+            environmentVariables["CX_GRAPHICS_BACKEND"] = "d3dmetal"
+            environmentVariables["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = resources.sharedLibrary.path
+            environmentVariables["DYLD_FRAMEWORK_PATH"] = resources.externalDirectory.path
+            environmentVariables["WINEDLLOVERRIDES"] = "d3d10core,d3d11=b"
         }
 
         if container.settings.metalHUD {
@@ -254,6 +298,54 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         }
 
         return environmentVariables
+    }
+
+    private static func d3dMetalResources() throws -> (externalDirectory: URL, sharedLibrary: URL) {
+        let externalDirectory = Engine.directory.appending(path: "wine/lib64/apple_gptk/external")
+        let sharedLibrary = externalDirectory.appending(path: "libd3dshared.dylib")
+        let framework = externalDirectory.appending(path: "D3DMetal.framework")
+
+        var missingComponents: [String] = []
+        if !isRegularFile(at: sharedLibrary) {
+            missingComponents.append("libd3dshared.dylib")
+        }
+
+        guard isDirectory(at: framework) else {
+            missingComponents.append("D3DMetal.framework")
+            throw Container.D3DMetalInstallationIncompleteError(missingComponents: missingComponents)
+        }
+
+        let frameworkExecutableCandidates = [
+            framework.appending(path: "Versions/A/D3DMetal"),
+            framework.appending(path: "D3DMetal")
+        ]
+        if !frameworkExecutableCandidates.contains(where: isRegularFile(at:)) {
+            missingComponents.append("D3DMetal.framework/Versions/A/D3DMetal")
+        }
+
+        let defaultMetallibCandidates = [
+            framework.appending(path: "Versions/A/Resources/default.metallib"),
+            framework.appending(path: "Resources/default.metallib")
+        ]
+        if !defaultMetallibCandidates.contains(where: isRegularFile(at:)) {
+            missingComponents.append("D3DMetal.framework/Resources/default.metallib")
+        }
+
+        guard missingComponents.isEmpty else {
+            throw Container.D3DMetalInstallationIncompleteError(missingComponents: missingComponents)
+        }
+
+        return (externalDirectory, sharedLibrary)
+    }
+
+    private static func isDirectory(at url: URL) -> Bool {
+        let resolvedURL = url.resolvingSymlinksInPath()
+        return (try? resolvedURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+    }
+
+    private static func isRegularFile(at url: URL) -> Bool {
+        let resolvedURL = url.resolvingSymlinksInPath()
+        return (try? resolvedURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
     }
 
     static func deleteContainer(containerURL: URL) throws {
@@ -276,7 +368,13 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
 
             try process.run()
             process.waitUntilExit()
-            try process.checkTerminationStatus()
+
+            // Engine 3.0.1's CX wineserver returns 1 when no server is running or
+            // already stopped, and also after successfully stopping an active server.
+            // Keep rejecting launch errors and any status greater than 1.
+            if process.terminationStatus != 1 {
+                try process.checkTerminationStatus()
+            }
         }
     }
 
@@ -319,17 +417,26 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
 
         try process.checkTerminationStatus()
 
-        // Gather non-empty, trimmed lines; return the last occurrence
+        // Gather non-empty, trimmed lines; return the queried value.
         let lines = commandResult.standardOutput?
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        if let last = lines?.last {
-            return last
-        } else {
+        guard let last = lines?.last else {
             throw UnableToQueryRegistryError()
         }
+
+        let components = last.split(whereSeparator: \.isWhitespace)
+        if let typeIndex = components.firstIndex(where: { String($0) == type.rawValue }),
+           let value = components.dropFirst(typeIndex + 1).first {
+            return String(value)
+        }
+        if components.count == 1 {
+            return last
+        }
+
+        throw UnableToQueryRegistryError()
     }
 
     static func toggleRetinaMode(containerURL: URL, toggle: Bool) async throws {

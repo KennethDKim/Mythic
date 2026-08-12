@@ -116,6 +116,13 @@ struct ContainerSettingsView: View {
                 ))
                 .disabled(variables.getVariable("booting") == true)
 
+                Toggle("Clean Launch", isOn: Binding(
+                    get: { container.settings.cleanLaunch },
+                    set: { container.settings.cleanLaunch = $0 }
+                ))
+                .disabled(variables.getVariable("booting") == true)
+                .help("Closes existing apps in this container before the next game launch.")
+
                 Toggle("Advanced Vector Extensions (AVX2)", isOn: Binding(
                     get: { container.settings.avx2 },
                     set: { container.settings.avx2 = $0 }
